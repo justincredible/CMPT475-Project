@@ -1,0 +1,200 @@
+/*
+Yi (Andy) Li			301146455
+Robert Mackenzie		200128755
+Justin Symonds			301031838
+Si Yuan (Oscar) Zhang	301127012
+*/
+
+CoreASM DMTD
+
+use BasicASM
+use Standard
+use Math
+
+/* Vocabulary */
+enum TOKEN = { glassToken, crackedToken }
+
+function break : Agents * SET -> BOOL
+function token : Agents * SET -> TOKEN
+function PROCESS : -> SET
+function nextMachine : Agents -> Agents
+function reported : SET -> BOOL
+/* monitored functions */
+function Active : Agents * SET -> BOOL
+function SentMessage : Agents * SET -> BOOL
+
+function crackedTokenEvent : Agents * SET -> BOOL
+function glassTokenEvent : Agents * SET -> BOOL
+
+universe Agents = { tester, environment }
+
+init InitRule
+
+rule InitRule = 
+	seqblock
+	nodes := toNumber(input("How many machines are in the system?"))
+	processes := toNumber(input("How many concurrent processes are running?"))
+	inactive := toNumber(input("What is the probability [0,1) a machine will become inactive for any process?"))
+	sends := toNumber(input("What is the probability [0,1) a machine sends a message for any process?"))
+	index := 0
+	
+	PROCESS := {}
+	while (index < processes)
+		seqblock
+		add "process_"+(index+1) to PROCESS
+		index := index + 1
+		endseqblock
+	index := 1
+	
+	forall p in PROCESS do
+		par
+		reported(p) := false
+		endpar
+	
+	if nodes = undef then
+		par
+		print "Error."
+		endpar
+	else
+		par
+		extend Agents with machine do
+			seqblock
+			par
+			program(machine) := @SupervisorMachineProgram
+			forall p in PROCESS do
+				par
+				token(machine,p) := crackedToken
+				break(machine,p) := false
+				endpar
+			endpar
+			mach := machine
+			while (index < nodes)
+				seqblock
+				extend Agents with nextMach do
+					par
+					program(nextMach) := @RegularMachineProgram
+					forall p in PROCESS do
+						par
+						break(nextMach,p) := false
+						endpar
+					nextMachine(mach) := nextMach
+					mach := nextMach
+					endpar
+				if index = (nodes - 1) then
+					par
+					nextMachine(mach) := machine
+					endpar
+				index := index + 1
+				endseqblock
+			endseqblock
+		endpar
+		
+	program(environment) := @EnvironmentProgram
+	program(self) := undef
+	endseqblock
+
+rule ReactOnEvents(m,p) = 
+	par
+	if crackedTokenEvent(m,p) then
+		par
+		token(m,p) := crackedToken
+		crackedTokenEvent(m,p) := false
+		endpar
+	if glassTokenEvent(m,p) then
+		par
+		token(m,p) := glassToken
+		glassTokenEvent(m,p) := false
+		endpar
+	if SentMessage(m,p) then
+		par
+		break(m,p) := true
+		SentMessage(m,p) := false
+		endpar
+	endpar
+
+rule InitializeMachine(m,p) =
+	par
+	token(m,p) := undef
+	break(m,p) := false
+	endpar
+
+rule RegularMachineProgram =
+	par
+	forall p in PROCESS do
+		par
+		ReactOnEvents(self,p)
+		if not( Active(self,p) ) and token(self,p) != undef then
+			par
+			InitializeMachine(self,p)
+			if break(self,p) then
+				par
+				crackedTokenEvent(nextMachine(self),p) := true
+				endpar
+			else
+				par
+				glassTokenEvent(nextMachine(self),p) := true
+				endpar
+			endpar
+		endpar
+	endpar
+
+rule SupervisorMachineProgram =
+	par
+	forall p in PROCESS do
+		par
+		ReactOnEvents(self,p)
+		if not( Active(self,p) ) and token(self,p) != undef then
+			par
+			if not( break(self,p) ) and token(self,p) = glassToken then
+				par
+				ReportGlobalTermination(p)
+				endpar
+			else
+				par
+				InitializeMachine(self,p)
+				glassTokenEvent(nextMachine(self),p) := true
+				endpar
+			endpar
+		endpar
+	endpar
+
+rule ReportGlobalTermination(p) =
+	par
+	if not reported(p) then
+		par
+		print p+" terminated"
+		reported(p) := true
+		endpar
+	endpar
+
+rule EnvironmentProgram =
+	par
+	forall m in Agents with program(m) = @RegularMachineProgram do
+		par
+		forall p in PROCESS do
+			par
+			if random < inactive then
+				par
+				Active(m,p) := false
+				endpar
+			if random < sends then
+				par
+				SentMessage(m,p) := true
+				endpar
+			endpar
+		endpar
+	forall m in Agents with program(m) = @SupervisorMachineProgram do
+		par
+		forall p in PROCESS do
+			par
+			if random < inactive then
+				par
+				Active(m,p) := false
+				endpar
+			if random < sends and not reported(p) then
+				par
+				SentMessage(m,p) := true
+				endpar
+			endpar
+		endpar
+	endpar
