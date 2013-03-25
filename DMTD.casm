@@ -14,17 +14,16 @@ use Math
 /* Vocabulary */
 enum TOKEN = { glassToken, crackedToken }
 
-function break : Agents * SET -> BOOL
-function token : Agents * SET -> TOKEN
-function PROCESS : -> SET
-function nextMachine : Agents -> Agents
+function break : SET * SET -> BOOL
+function token : SET * SET -> TOKEN
+function nextMachine : SET -> SET
 function reported : SET -> BOOL
 /* monitored functions */
-function Active : Agents * SET -> BOOL
-function SentMessage : Agents * SET -> BOOL
+function Active : SET * SET -> BOOL
+function SentMessage : SET * SET -> BOOL
 
-function crackedTokenEvent : Agents * SET -> BOOL
-function glassTokenEvent : Agents * SET -> BOOL
+function crackedTokenEvent : SET * SET -> BOOL
+function glassTokenEvent : SET * SET -> BOOL
 
 universe Agents = { tester, environment }
 
@@ -39,56 +38,60 @@ rule InitRule =
 	index := 0
 	
 	PROCESS := {}
+	MACHINE := {}
+	
 	while (index < processes)
 		seqblock
 		add "process_"+(index+1) to PROCESS
 		index := index + 1
 		endseqblock
-	index := 1
+	index := 0
 	
-	forall p in PROCESS do
-		par
+	par forall p in PROCESS do
 		reported(p) := false
-		endpar
-	
+	endpar
+
 	if nodes = undef then
-		par
 		print "Error."
-		endpar
 	else
-		par
-		extend Agents with machine do
-			seqblock
+		seqblock
+		add "machine_"+index to MACHINE
+		par forall m in MACHINE with m = "machine_"+index do
 			par
-			program(machine) := @SupervisorMachineProgram
-			forall p in PROCESS do
+			Agents(m) := true
+			program(m) := @SupervisorMachineProgram
+			par forall p in PROCESS do
 				par
-				token(machine,p) := crackedToken
-				break(machine,p) := false
+				token(m,p) := crackedToken
+				break(m,p) := false
 				endpar
 			endpar
-			mach := machine
-			while (index < nodes)
-				seqblock
-				extend Agents with nextMach do
-					par
-					program(nextMach) := @RegularMachineProgram
-					forall p in PROCESS do
-						par
-						break(nextMach,p) := false
-						endpar
-					nextMachine(mach) := nextMach
-					mach := nextMach
-					endpar
-				if index = (nodes - 1) then
-					par
-					nextMachine(mach) := machine
-					endpar
-				index := index + 1
-				endseqblock
-			endseqblock
+			mach := m
+			original := m
+			endpar
 		endpar
-		
+		index := index + 1
+			
+		while (index < nodes)
+			seqblock
+			add "machine_"+index to MACHINE
+			par forall m in MACHINE with m = "machine_"+index do
+				par
+				Agents(m) := true
+				program(m) := @RegularMachineProgram
+				par forall p in PROCESS do
+					break(m,p) := false
+				endpar
+				nextMachine(mach) := m
+				mach := m
+				endpar
+			endpar
+			if index = (nodes - 1) then
+				nextMachine(mach) := original
+			index := index + 1
+			endseqblock
+		endseqblock
+	
 	program(environment) := @EnvironmentProgram
 	program(self) := undef
 	endseqblock
@@ -119,44 +122,38 @@ rule InitializeMachine(m,p) =
 	endpar
 
 rule RegularMachineProgram =
-	par
-	forall p in PROCESS do
+par
+	par forall p in PROCESS do
 		par
 		ReactOnEvents(self,p)
-		if not( Active(self,p) ) and token(self,p) != undef then
+		if not( Active(self,p) ) and ( token(self,p) != undef ) then
 			par
 			InitializeMachine(self,p)
 			if break(self,p) then
-				par
 				crackedTokenEvent(nextMachine(self),p) := true
-				endpar
 			else
-				par
 				glassTokenEvent(nextMachine(self),p) := true
-				endpar
 			endpar
 		endpar
 	endpar
+endpar
 
 rule SupervisorMachineProgram =
-	par
-	forall p in PROCESS do
+par
+	par forall p in PROCESS do
 		par
 		ReactOnEvents(self,p)
-		if not( Active(self,p) ) and token(self,p) != undef then
-			par
-			if not( break(self,p) ) and token(self,p) = glassToken then
-				par
+		if not( Active(self,p) ) and ( token(self,p) != undef ) then
+			if not( break(self,p) ) and ( token(self,p) = glassToken ) then
 				ReportGlobalTermination(p)
-				endpar
 			else
 				par
 				InitializeMachine(self,p)
 				glassTokenEvent(nextMachine(self),p) := true
 				endpar
-			endpar
 		endpar
 	endpar
+endpar
 
 rule ReportGlobalTermination(p) =
 	par
@@ -168,33 +165,25 @@ rule ReportGlobalTermination(p) =
 	endpar
 
 rule EnvironmentProgram =
-	par
-	forall m in Agents with program(m) = @RegularMachineProgram do
+par
+	par forall m in MACHINE with program(m) = @RegularMachineProgram do
 		par
-		forall p in PROCESS do
-			par
+		choose p in PROCESS do
 			if random < inactive then
-				par
 				Active(m,p) := false
-				endpar
+		choose p in PROCESS do
 			if random < sends then
-				par
 				SentMessage(m,p) := true
-				endpar
-			endpar
-		endpar
-	forall m in Agents with program(m) = @SupervisorMachineProgram do
-		par
-		forall p in PROCESS do
-			par
-			if random < inactive then
-				par
-				Active(m,p) := false
-				endpar
-			if random < sends and not reported(p) then
-				par
-				SentMessage(m,p) := true
-				endpar
-			endpar
 		endpar
 	endpar
+	par forall s in MACHINE with program(s) = @SupervisorMachineProgram do
+		par 
+		choose p in PROCESS do
+			if random < inactive then
+				Active(s,p) := false
+		choose p in PROCESS do
+			if random < sends and not reported(q) then
+				SentMessage(s,p) := true
+		endpar
+	endpar
+endpar
