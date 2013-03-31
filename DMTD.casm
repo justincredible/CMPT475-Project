@@ -13,177 +13,161 @@ use Math
 
 /* Vocabulary */
 enum TOKEN = { glassToken, crackedToken }
+enum PROCESS = { process_1, process_2, process_3 }
 
-function break : SET * SET -> BOOL
-function token : SET * SET -> TOKEN
-function nextMachine : SET -> SET
-function reported : SET -> BOOL
+function break : Agents * PROCESS -> BOOL
+function token : Agents * PROCESS -> TOKEN
+function nextMachine : Agents -> Agents
+function reported : PROCESS -> BOOL
+function machineRank : Agents -> NUMBER
 /* monitored functions */
-function Active : SET * SET -> BOOL
-function SentMessage : SET * SET -> BOOL
+// When a machine is active whenver it has work to do for a given process
+function Active : Agents * PROCESS -> BOOL
+function SentMessage : Agents * PROCESS -> BOOL
+function crackedTokenEvent : Agents * PROCESS -> BOOL
+function glassTokenEvent : Agents * PROCESS -> BOOL
 
-function crackedTokenEvent : SET * SET -> BOOL
-function glassTokenEvent : SET * SET -> BOOL
-
-universe Agents = { tester, environment }
+universe Agents = { tester, environment, machine_0, machine_1, machine_2, machine_3, machine_4 }
 
 init InitRule
 
 rule InitRule = 
 	seqblock
-	nodes := toNumber(input("How many machines are in the system?"))
-	processes := toNumber(input("How many concurrent processes are running?"))
+	/*nodes := toNumber(input("How many machines are in the system?"))
+	processes := toNumber(input("How many concurrent processes are running?"))*/
 	inactive := toNumber(input("What is the probability [0,1) a machine will become inactive for any process?"))
 	sends := toNumber(input("What is the probability [0,1) a machine sends a message for any process?"))
+	starts := toNumber(input("What is the probability [0,1) a machine already has work to do for any process?"))
 	index := 0
+	null := {}
 	
-	PROCESS := {}
-	MACHINE := {}
+	choose m in Agents with toString(m) = "machine_"+index do
+		{
+		program(m) := @SupervisorMachineProgram
+		machineRank(m) := index
+		forall p in PROCESS do
+			token(m,p) := crackedToken
+		mach := m
+		original := m
+		}
+	index := index + 1
 	
-	while (index < processes)
+	// the 3 agents are Init, tester, and environment
+	while (index < size(Agents) - 3)
 		seqblock
-		add "process_"+(index+1) to PROCESS
-		index := index + 1
-		endseqblock
-	index := 0
-	
-	par forall p in PROCESS do
-		reported(p) := false
-	endpar
-
-	if nodes = undef then
-		print "Error."
-	else
-		seqblock
-		add "machine_"+index to MACHINE
-		par forall m in MACHINE with m = "machine_"+index do
-			par
-			Agents(m) := true
-			program(m) := @SupervisorMachineProgram
-			par forall p in PROCESS do
-				par
-				token(m,p) := crackedToken
-				break(m,p) := false
-				endpar
-			endpar
+		choose m in Agents with toString(m) = "machine_"+index do
+			{
+			program(m) := @RegularMachineProgram
+			machineRank(m) := index
+			nextMachine(mach) := m
 			mach := m
-			original := m
-			endpar
-		endpar
+			}
+		if index = size(Agents) - 4 then
+			nextMachine(mach) := original
 		index := index + 1
-			
-		while (index < nodes)
-			seqblock
-			add "machine_"+index to MACHINE
-			par forall m in MACHINE with m = "machine_"+index do
-				par
-				Agents(m) := true
-				program(m) := @RegularMachineProgram
-				par forall p in PROCESS do
-					break(m,p) := false
-				endpar
-				nextMachine(mach) := m
-				mach := m
-				endpar
-			endpar
-			if index = (nodes - 1) then
-				nextMachine(mach) := original
-			index := index + 1
-			endseqblock
 		endseqblock
-	
+
+	forall p in PROCESS do
+		{
+		forall m in Agents with machineRank(m) != undef do
+			if random < starts then
+				Active(m,p) := true
+			else
+				Active(m,p) := false
+		reported(p) := false
+		}
+
 	program(environment) := @EnvironmentProgram
 	program(self) := undef
 	endseqblock
 
 rule ReactOnEvents(m,p) = 
-	par
+	seqblock
+	{
 	if crackedTokenEvent(m,p) then
-		par
 		token(m,p) := crackedToken
-		crackedTokenEvent(m,p) := false
-		endpar
 	if glassTokenEvent(m,p) then
-		par
 		token(m,p) := glassToken
-		glassTokenEvent(m,p) := false
-		endpar
 	if SentMessage(m,p) then
-		par
 		break(m,p) := true
+	}
+	{
+		crackedTokenEvent(m,p) := false
+		glassTokenEvent(m,p) := false
 		SentMessage(m,p) := false
-		endpar
-	endpar
+	}
+	endseqblock
 
 rule InitializeMachine(m,p) =
-	par
+	{
 	token(m,p) := undef
 	break(m,p) := false
-	endpar
+	}
 
-rule RegularMachineProgram =
-par
-	par forall p in PROCESS do
-		par
-		ReactOnEvents(self,p)
-		if not( Active(self,p) ) and ( token(self,p) != undef ) then
-			par
-			InitializeMachine(self,p)
-			if break(self,p) then
-				crackedTokenEvent(nextMachine(self),p) := true
-			else
-				glassTokenEvent(nextMachine(self),p) := true
-			endpar
-		endpar
-	endpar
-endpar
-
-rule SupervisorMachineProgram =
-par
-	par forall p in PROCESS do
-		par
-		ReactOnEvents(self,p)
-		if not( Active(self,p) ) and ( token(self,p) != undef ) then
-			if not( break(self,p) ) and ( token(self,p) = glassToken ) then
-				ReportGlobalTermination(p)
-			else
-				par
-				InitializeMachine(self,p)
-				glassTokenEvent(nextMachine(self),p) := true
-				endpar
-		endpar
-	endpar
-endpar
+rule ForwardToken(t,m,p) =
+	{
+	print "The "+t+" of "+p+" was passed to "+toString(m)+"."
+	if t = glassToken then
+		glassTokenEvent(m,p) := true
+	if t = crackedToken then
+		crackedTokenEvent(m,p) := true
+	}
 
 rule ReportGlobalTermination(p) =
-	par
 	if not reported(p) then
-		par
+		{
 		print p+" terminated"
 		reported(p) := true
-		endpar
-	endpar
+		}
 
+rule RegularMachineProgram =
+	choose p in PROCESS with reported(p) = false do
+		{
+		ReactOnEvents(self,p)
+		if not Active(self,p) and token(self,p) != undef then
+			{
+			InitializeMachine(self,p)
+			if break(self,p) then
+				ForwardToken(crackedToken,nextMachine(self),p)
+			else
+				ForwardToken(token(self,p),nextMachine(self),p)
+			}
+		}
+
+rule SupervisorMachineProgram =
+	choose p in PROCESS with reported(p) = false do
+		{
+		ReactOnEvents(self,p)
+		if not Active(self,p) and token(self,p) != undef then
+			{
+			if not break(self,p) and token(self,p) = glassToken then
+				ReportGlobalTermination(p)
+			else
+				{
+				InitializeMachine(self,p)
+				ForwardToken(glassToken,nextMachine(self),p)
+				}
+			}
+		}
+
+/*
+ * Assumptions:
+ *	- a machine can only work on one process at any instant
+ * 	- a machine can only send work messages forward in the chain
+ *	- a machine will send work for a given process to another machine only when the receiving machine is not already have work
+ *
+ */
 rule EnvironmentProgram =
-par
-	par forall m in MACHINE with program(m) = @RegularMachineProgram do
-		par
-		choose p in PROCESS do
+	forall m in Agents with machineRank(m) != undef do
+		choose p in PROCESS with Active(m,p) = true do
+			seqblock
 			if random < inactive then
 				Active(m,p) := false
-		choose p in PROCESS do
 			if random < sends then
-				SentMessage(m,p) := true
-		endpar
-	endpar
-	par forall s in MACHINE with program(s) = @SupervisorMachineProgram do
-		par 
-		choose p in PROCESS do
-			if random < inactive then
-				Active(s,p) := false
-		choose p in PROCESS do
-			if random < sends and not reported(q) then
-				SentMessage(s,p) := true
-		endpar
-	endpar
-endpar
+				// choose s in Agents results in: Value of choose condition is not Boolean.
+				choose s in {nextMachine(m),nextMachine(nextMachine(m))} with Active(s,p) = false and toNumber(machineRank(s)) > toNumber(machineRank(m)) do
+					{
+					SentMessage(m,p) := true
+					Active(s,p) := true
+					}
+			endseqblock
