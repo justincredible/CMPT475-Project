@@ -13,36 +13,46 @@ use Math
 
 /* Vocabulary */
 enum TOKEN = { glassToken, crackedToken }
-enum PROCESS = { process_1, process_2, process_3 }
 
-function break : Agents * PROCESS -> BOOL
-function token : Agents * PROCESS -> TOKEN
-function nextMachine : Agents -> Agents
-function reported : PROCESS -> BOOL
-function machineRank : Agents -> NUMBER
+function break : MACHINE * PROCESS -> BOOLEAN
+function token : MACHINE * PROCESS -> TOKEN
+function nextMachine : MACHINE -> MACHINE
+function reported : PROCESS -> BOOLEAN
+function machineRank : MACHINE -> NUMBER
 /* monitored functions */
-// When a machine is active whenver it has work to do for a given process
-function Active : Agents * PROCESS -> BOOL
-function SentMessage : Agents * PROCESS -> BOOL
-function crackedTokenEvent : Agents * PROCESS -> BOOL
-function glassTokenEvent : Agents * PROCESS -> BOOL
+// When a machine is active whenever it has work to do for a given process
+function Active : MACHINE * PROCESS -> BOOLEAN
+function SentMessage : MACHINE * PROCESS -> BOOLEAN
+function CrackedTokenEvent : MACHINE * PROCESS -> BOOLEAN
+function GlassTokenEvent : MACHINE * PROCESS -> BOOLEAN
 
-universe Agents = { tester, environment, machine_0, machine_1, machine_2, machine_3, machine_4 }
+universe Agents = { tester, environment }
 
 init InitRule
 
 rule InitRule = 
 	seqblock
-	/*nodes := toNumber(input("How many machines are in the system?"))
-	processes := toNumber(input("How many concurrent processes are running?"))*/
+	nodes := toNumber(input("How many machines are in the system?"))
+	processes := toNumber(input("How many concurrent processes are running?"))
 	inactive := toNumber(input("What is the probability [0,1) a machine will become inactive for any process?"))
 	sends := toNumber(input("What is the probability [0,1) a machine sends a message for any process?"))
 	starts := toNumber(input("What is the probability [0,1) a machine already has work to do for any process?"))
 	index := 0
-	null := {}
+
+	MACHINE := {}
+	PROCESS := {}
 	
-	choose m in Agents with toString(m) = "machine_"+index do
+	while (index < processes)
 		{
+		add "process_"+(index+1) to PROCESS
+		index := index + 1
+		}
+	index := 0
+
+	add "machine_"+index to MACHINE
+	choose m in MACHINE with m = "machine_"+index do
+		{
+		Agents(m) := true
 		program(m) := @SupervisorMachineProgram
 		machineRank(m) := index
 		forall p in PROCESS do
@@ -52,24 +62,25 @@ rule InitRule =
 		}
 	index := index + 1
 	
-	// the 3 agents are Init, tester, and environment
-	while (index < size(Agents) - 3)
+	while (index < nodes)
 		seqblock
-		choose m in Agents with toString(m) = "machine_"+index do
+		add "machine_"+index to MACHINE
+		choose m in MACHINE with m = "machine_"+index do
 			{
+			Agents(m) := true
 			program(m) := @RegularMachineProgram
 			machineRank(m) := index
 			nextMachine(mach) := m
 			mach := m
 			}
-		if index = size(Agents) - 4 then
+		if index = nodes - 1 then
 			nextMachine(mach) := original
 		index := index + 1
 		endseqblock
 
 	forall p in PROCESS do
 		{
-		forall m in Agents with machineRank(m) != undef do
+		forall m in MACHINE do
 			if random < starts then
 				Active(m,p) := true
 			else
@@ -77,26 +88,30 @@ rule InitRule =
 		reported(p) := false
 		}
 
+	/*forall m in Agents do
+		print m+" "+machineRank(m)+" "+nextMachine(m)+" "+program(m)
+	*/
 	program(environment) := @EnvironmentProgram
 	program(self) := undef
 	endseqblock
 
 rule ReactOnEvents(m,p) = 
-	seqblock
 	{
-	if crackedTokenEvent(m,p) then
+	if CrackedTokenEvent(m,p) then
 		token(m,p) := crackedToken
-	if glassTokenEvent(m,p) then
+	if GlassTokenEvent(m,p) then
 		token(m,p) := glassToken
 	if SentMessage(m,p) then
 		break(m,p) := true
+	ClearEvents(m,p)
 	}
+	
+rule ClearEvents(m,p) =
 	{
-		crackedTokenEvent(m,p) := false
-		glassTokenEvent(m,p) := false
-		SentMessage(m,p) := false
+	CrackedTokenEvent(m,p) := false
+	GlassTokenEvent(m,p) := false
+	SentMessage(m,p) := false
 	}
-	endseqblock
 
 rule InitializeMachine(m,p) =
 	{
@@ -106,23 +121,28 @@ rule InitializeMachine(m,p) =
 
 rule ForwardToken(t,m,p) =
 	{
-	print "The "+t+" of "+p+" was passed to "+toString(m)+"."
+	print "The "+t+" of "+p+" was passed to "+m+"."
 	if t = glassToken then
-		glassTokenEvent(m,p) := true
+		GlassTokenEvent(m,p) := true
 	if t = crackedToken then
-		crackedTokenEvent(m,p) := true
+		CrackedTokenEvent(m,p) := true
 	}
 
 rule ReportGlobalTermination(p) =
 	if not reported(p) then
 		{
-		print p+" terminated"
+		print p+" terminated."
 		reported(p) := true
 		}
 
+/*
+ * Assumptions:
+ * - a machine cannot react to events while creating them
+ *
+ */
 rule RegularMachineProgram =
 	choose p in PROCESS with reported(p) = false do
-		{
+		seqblock
 		ReactOnEvents(self,p)
 		if not Active(self,p) and token(self,p) != undef then
 			{
@@ -132,42 +152,39 @@ rule RegularMachineProgram =
 			else
 				ForwardToken(token(self,p),nextMachine(self),p)
 			}
-		}
+		endseqblock
 
 rule SupervisorMachineProgram =
 	choose p in PROCESS with reported(p) = false do
-		{
+		seqblock
 		ReactOnEvents(self,p)
 		if not Active(self,p) and token(self,p) != undef then
 			{
+			InitializeMachine(self,p)
 			if not break(self,p) and token(self,p) = glassToken then
 				ReportGlobalTermination(p)
 			else
-				{
-				InitializeMachine(self,p)
 				ForwardToken(glassToken,nextMachine(self),p)
-				}
 			}
-		}
+		endseqblock
 
 /*
  * Assumptions:
  *	- a machine can only work on one process at any instant
  * 	- a machine can only send work messages forward in the chain
- *	- a machine will send work for a given process to another machine only when the receiving machine is not already have work
+ *	- a machine will send work for a given process to another machine only when the receiving machine does not already have work
  *
  */
 rule EnvironmentProgram =
-	forall m in Agents with machineRank(m) != undef do
+	forall m in MACHINE do
 		choose p in PROCESS with Active(m,p) = true do
-			seqblock
+			{
+			if random < sends then
+				{
+				SentMessage(m,p) := true
+				choose s in MACHINE with Active(s,p) = false and machineRank(s) > machineRank(m) do
+					Active(s,p) := true
+				}
 			if random < inactive then
 				Active(m,p) := false
-			if random < sends then
-				// choose s in Agents results in: Value of choose condition is not Boolean.
-				choose s in {nextMachine(m),nextMachine(nextMachine(m))} with Active(s,p) = false and toNumber(machineRank(s)) > toNumber(machineRank(m)) do
-					{
-					SentMessage(m,p) := true
-					Active(s,p) := true
-					}
-			endseqblock
+			}
