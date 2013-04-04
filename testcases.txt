@@ -1,0 +1,8 @@
+1. Safety Requirements
+    1.1 In a system with 0 processes, no machine or token is black. no machine should be in active state.
+    1.2 In a system with 0 processes, Supervisor machine should only need to instantiate the algorithm exactly once
+    1.3 If a process has 100% chance sending a message, the process cannot terminate.
+    1.4 Process cannot forward token to machines with higher index
+
+2. Liveness Requirements
+    1.1 Token is returned to the supervisor machien
