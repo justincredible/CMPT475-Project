@@ -16,7 +16,7 @@ enum TOKEN = { glassToken, crackedToken }
 
 function break : MACHINE * PROCESS -> BOOLEAN
 function token : MACHINE * PROCESS -> TOKEN
-function next : MACHINE -> MACHINE
+function nextMachine : MACHINE -> MACHINE
 function reported : PROCESS -> BOOLEAN
 /* monitored functions */
 // When a machine is active whenever it has work to do for a given process
@@ -66,10 +66,10 @@ rule InitRule =
 			{
 			Agents(m) := true
 			program(m) := @RegularMachineProgram
-			next(mach) := m
+			nextMachine(mach) := m
 			mach := m
 			}
-		if index = nodes - 1 then next(mach) := original
+		if index = nodes - 1 then nextMachine(mach) := original
 		index := index + 1
 		endseqblock
 
@@ -82,7 +82,7 @@ rule InitRule =
 		}
 
 	/*forall m in Agents do
-		print m+" "+machineRank(m)+" "+next(m)+" "+program(m)
+		print m+" "+machineRank(m)+" "+nextMachine(m)+" "+program(m)
 	*/
 	program(environment) := @EnvironmentProgram
 	program(self) := undef
@@ -138,8 +138,8 @@ rule RegularMachineProgram =
 		if not Active(self,p) and token(self,p) != undef then
 			{
 			InitializeMachine(self,p)
-			if break(self,p) then ForwardToken(crackedToken,next(self),p)
-			else ForwardToken(token(self,p),next(self),p)
+			if break(self,p) then ForwardToken(crackedToken,nextMachine(self),p)
+			else ForwardToken(token(self,p),nextMachine(self),p)
 			}
 		endseqblock
 
@@ -151,7 +151,7 @@ rule SupervisorMachineProgram =
 			{
 			InitializeMachine(self,p)
 			if not break(self,p) and token(self,p) = glassToken then ReportGlobalTermination(p)
-			else ForwardToken(glassToken,next(self),p)
+			else ForwardToken(glassToken,nextMachine(self),p)
 			}
 		endseqblock
 
@@ -159,12 +159,19 @@ rule SupervisorMachineProgram =
  * Assumptions:
  *	- a machine can only work on one process at any instant
  *	- a machine will send work for a given process to another machine only when the receiving machine does not already have work
+ *	- after the initial state a machine can only become active for a process when another machine sends a message for that process
  *
  */
 rule EnvironmentProgram =
 	forall m in MACHINE do
 		choose p in PROCESS with Active(m,p) = true do
 			{
-			if random < sends then SendMessageEvent(m,p) := true
+			if random < sends then
+				{
+				SendMessageEvent(m,p) := true
+				if random < starts then
+					choose s in MACHINE with Active(s,p) = false do
+						Active(s,p) := true
+				}
 			if random < inactive then Active(m,p) := false
 			}
