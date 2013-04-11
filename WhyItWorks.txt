@@ -1,0 +1,3 @@
+Dijkstra et al. have proved the algorithm works for one process, and adding a procotol identifier to the functions and rules should not affect the execution of the protocol.
+If we use process numbers as protocol identifiers, then our algorithm can be viewed as running individual instances of the protocol concurrently.
+Since Dijkstra et al.'s algorithm works for one protocol and one protocol instance does not create changes in the other protocol instances, our algorith works.
