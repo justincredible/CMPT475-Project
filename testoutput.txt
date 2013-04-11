@@ -1,0 +1,132 @@
+Input
+
+4 Processes
+8 Machines
+Inactive chance: 0.5
+Send message chance: 0.5
+Already active chance: 0.5
+
+Output:
+
+The glassToken of process_2 was passed to machine_1.
+The glassToken of process_3 was passed to machine_1.
+The glassToken of process_1 was passed to machine_1.
+The glassToken of process_1 was passed to machine_2.
+The glassToken of process_2 was passed to machine_2.
+The glassToken of process_2 was passed to machine_3.
+The glassToken of process_2 was passed to machine_4.
+The glassToken of process_1 was passed to machine_3.
+The glassToken of process_1 was passed to machine_4.
+The glassToken of process_2 was passed to machine_5.
+The glassToken of process_2 was passed to machine_6.
+The glassToken of process_3 was passed to machine_2.
+The glassToken of process_1 was passed to machine_5.
+The glassToken of process_3 was passed to machine_3.
+The glassToken of process_4 was passed to machine_1.
+The glassToken of process_4 was passed to machine_2.
+The glassToken of process_2 was passed to machine_7.
+The glassToken of process_3 was passed to machine_4.
+The glassToken of process_3 was passed to machine_5.
+The glassToken of process_4 was passed to machine_3.
+The glassToken of process_2 was passed to machine_0.
+The glassToken of process_3 was passed to machine_6.
+process_2 terminated.
+The glassToken of process_1 was passed to machine_6.
+The glassToken of process_4 was passed to machine_4.
+The glassToken of process_4 was passed to machine_5.
+The glassToken of process_1 was passed to machine_7.
+The glassToken of process_4 was passed to machine_6.
+The glassToken of process_3 was passed to machine_7.
+The glassToken of process_3 was passed to machine_0.
+The glassToken of process_4 was passed to machine_7.
+The glassToken of process_1 was passed to machine_0.
+process_3 terminated.
+process_1 terminated.
+The glassToken of process_4 was passed to machine_0.
+process_4 terminated.
+
+4 Processes
+8 Machines
+Inactive chance: 0.5
+Send message chance: 0.9999
+Already active chance: 0.5
+
+The glassToken of process_4 was passed to machine_1.
+The glassToken of process_1 was passed to machine_1.
+The glassToken of process_2 was passed to machine_1.
+The glassToken of process_4 was passed to machine_2.
+The glassToken of process_3 was passed to machine_1.
+The glassToken of process_2 was passed to machine_2.
+The glassToken of process_3 was passed to machine_2.
+The glassToken of process_4 was passed to machine_3.
+The glassToken of process_4 was passed to machine_4.
+The glassToken of process_1 was passed to machine_2.
+The glassToken of process_4 was passed to machine_5.
+The glassToken of process_1 was passed to machine_3.
+The glassToken of process_1 was passed to machine_4.
+The glassToken of process_3 was passed to machine_3.
+The glassToken of process_3 was passed to machine_4.
+The glassToken of process_3 was passed to machine_5.
+The glassToken of process_2 was passed to machine_3.
+The glassToken of process_1 was passed to machine_5.
+The glassToken of process_3 was passed to machine_6.
+The glassToken of process_1 was passed to machine_6.
+The glassToken of process_4 was passed to machine_6.
+The glassToken of process_2 was passed to machine_4.
+The glassToken of process_2 was passed to machine_5.
+The glassToken of process_3 was passed to machine_7.
+The glassToken of process_1 was passed to machine_7.
+The glassToken of process_4 was passed to machine_7.
+The glassToken of process_4 was passed to machine_0.
+The glassToken of process_3 was passed to machine_0.
+The glassToken of process_1 was passed to machine_0.
+The glassToken of process_2 was passed to machine_6.
+process_3 terminated.
+The glassToken of process_2 was passed to machine_7.
+The glassToken of process_2 was passed to machine_0.
+process_4 terminated.
+process_2 terminated.
+process_1 terminated.
+
+4 Processes
+8 Machines
+Inactive chance: 0.9999
+Send message chance: 0.9999
+Already active chance: 0.5
+
+The glassToken of process_1 was passed to machine_1.
+The glassToken of process_2 was passed to machine_1.
+The glassToken of process_1 was passed to machine_2.
+The glassToken of process_1 was passed to machine_3.
+The glassToken of process_2 was passed to machine_2.
+The glassToken of process_4 was passed to machine_1.
+The glassToken of process_2 was passed to machine_3.
+The glassToken of process_3 was passed to machine_1.
+The glassToken of process_1 was passed to machine_4.
+The glassToken of process_3 was passed to machine_2.
+The glassToken of process_2 was passed to machine_4.
+The glassToken of process_1 was passed to machine_5.
+The glassToken of process_3 was passed to machine_3.
+The glassToken of process_1 was passed to machine_6.
+The glassToken of process_2 was passed to machine_5.
+The glassToken of process_2 was passed to machine_6.
+The glassToken of process_3 was passed to machine_4.
+The glassToken of process_4 was passed to machine_2.
+The glassToken of process_4 was passed to machine_3.
+The glassToken of process_1 was passed to machine_7.
+The glassToken of process_4 was passed to machine_4.
+The glassToken of process_4 was passed to machine_5.
+The glassToken of process_2 was passed to machine_7.
+The glassToken of process_1 was passed to machine_0.
+The glassToken of process_2 was passed to machine_0.
+The glassToken of process_4 was passed to machine_6.
+The glassToken of process_4 was passed to machine_7.
+process_1 terminated.
+The glassToken of process_3 was passed to machine_5.
+The glassToken of process_3 was passed to machine_6.
+process_2 terminated.
+The glassToken of process_3 was passed to machine_7.
+The glassToken of process_3 was passed to machine_0.
+process_3 terminated.
+The glassToken of process_4 was passed to machine_0.
+process_4 terminated.
