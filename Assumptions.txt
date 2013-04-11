@@ -1,0 +1,13 @@
+/*
+ * Environment Assumptions:
+ *	- a machine can only work on one process at any instant
+ *	- a machine will send work for a given process to another machine only when the receiving machine does not already have work
+ *	- after the initial state a machine can only become active for a process when another machine sends a message for that process
+ *
+ */
+ 
+ /*
+ * Machine Assumptions:
+ * - a machine cannot react to events while creating them
+ *
+ */
